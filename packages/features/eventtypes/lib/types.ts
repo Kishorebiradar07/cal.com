@@ -46,6 +46,8 @@ export type Host = {
   scheduleId?: number | null;
   groupId: string | null;
   location?: HostLocation | null;
+  isEmailInvite?: boolean;
+  email?: string;
 };
 export type TeamMember = {
   value: string;

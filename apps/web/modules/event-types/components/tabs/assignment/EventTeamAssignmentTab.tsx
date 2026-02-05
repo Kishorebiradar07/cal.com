@@ -229,6 +229,8 @@ const FixedHosts = ({
               isFixed={true}
               customClassNames={customClassNames?.addMembers}
               onActive={handleFixedHostsActivation}
+              allowEmailInvites={true}
+              teamMemberEmails={teamMembers.map((m) => m.email)}
             />
           </div>
         </>
@@ -260,6 +262,8 @@ const FixedHosts = ({
               automaticAddAllEnabled={!isRoundRobinEvent}
               isFixed={true}
               onActive={handleFixedHostsActivation}
+              allowEmailInvites={true}
+              teamMemberEmails={teamMembers.map((m) => m.email)}
             />
           </div>
         </SettingsToggle>
@@ -435,6 +439,8 @@ const RoundRobinHosts = ({
         containerClassName={containerClassName || (assignAllTeamMembers ? "-mt-4" : "")}
         onActive={() => handleMembersActivation(groupId)}
         customClassNames={customClassNames?.addMembers}
+        allowEmailInvites={true}
+        teamMemberEmails={teamMembers.map((m) => m.email)}
       />
     );
   };

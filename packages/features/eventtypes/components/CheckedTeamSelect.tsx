@@ -3,11 +3,18 @@
 import { useAutoAnimate } from "@formkit/auto-animate/react";
 import { useState } from "react";
 import type { Options, Props } from "react-select";
+import CreatableSelect from "react-select/creatable";
 
 import { useIsPlatform } from "@calcom/atoms/hooks/useIsPlatform";
 import type { SelectClassNames } from "@calcom/features/eventtypes/lib/types";
 import { getHostsFromOtherGroups } from "@calcom/lib/bookings/hostGroupUtils";
 import { useLocale } from "@calcom/lib/hooks/useLocale";
+import {
+  validateEmail,
+  isDuplicateEmail,
+  getEmailLabel,
+  parseCommaSeparatedEmails,
+} from "@calcom/lib/emails/validateEmail";
 import classNames from "@calcom/ui/classNames";
 import { Avatar } from "@calcom/ui/components/avatar";
 import { Button } from "@calcom/ui/components/button";
@@ -28,6 +35,8 @@ export type CheckedSelectOption = {
   disabled?: boolean;
   defaultScheduleId?: number | null;
   groupId: string | null;
+  isEmailInvite?: boolean;
+  email?: string;
 };
 
 export type CheckedTeamSelectCustomClassNames = {
@@ -52,6 +61,8 @@ export const CheckedTeamSelect = ({
   isRRWeightsEnabled,
   customClassNames,
   groupId,
+  allowEmailInvites = false,
+  teamMemberEmails = [],
   ...props
 }: Omit<Props<CheckedSelectOption, true>, "value" | "onChange"> & {
   options?: Options<CheckedSelectOption>;
@@ -60,6 +71,8 @@ export const CheckedTeamSelect = ({
   isRRWeightsEnabled?: boolean;
   customClassNames?: CheckedTeamSelectCustomClassNames;
   groupId: string | null;
+  allowEmailInvites?: boolean;
+  teamMemberEmails?: string[];
 }) => {
   const isPlatform = useIsPlatform();
   const [priorityDialogOpen, setPriorityDialogOpen] = useState(false);
@@ -79,23 +92,67 @@ export const CheckedTeamSelect = ({
     props.onChange(newValueAllGroups);
   };
 
+  const handleCreate = (inputValue: string) => {
+    if (!allowEmailInvites) return;
+
+    const emails = parseCommaSeparatedEmails(inputValue);
+    const existingValues = value.map((v) => v.email || "").filter(Boolean);
+
+    const newOptions = emails
+      .filter((email) => !isDuplicateEmail(email, existingValues, teamMemberEmails))
+      .map((email) => ({
+        label: getEmailLabel(email),
+        value: `email-${email}`,
+        avatar: "",
+        email: email,
+        isEmailInvite: true,
+        priority: 2,
+        weight: 1,
+        groupId: groupId,
+      }));
+
+    if (newOptions.length > 0) {
+      handleSelectChange([...valueFromGroup, ...newOptions] as readonly CheckedSelectOption[]);
+    }
+  };
+
   return (
     <>
-      <Select
-        {...props}
-        name={props.name}
-        placeholder={props.placeholder || t("select")}
-        isSearchable={true}
-        options={options}
-        value={valueFromGroup}
-        onChange={handleSelectChange}
-        isMulti
-        className={customClassNames?.hostsSelect?.select}
-        innerClassNames={{
-          ...customClassNames?.hostsSelect?.innerClassNames,
-          control: "rounded-md",
-        }}
-      />
+      {allowEmailInvites ? (
+        <CreatableSelect
+          {...props}
+          name={props.name}
+          placeholder={props.placeholder || t("select")}
+          isSearchable={true}
+          options={options}
+          value={valueFromGroup}
+          onChange={handleSelectChange}
+          onCreateOption={handleCreate}
+          formatCreateLabel={(inputValue) => `Invite ${inputValue}`}
+          isMulti
+          className={customClassNames?.hostsSelect?.select}
+          innerClassNames={{
+            ...customClassNames?.hostsSelect?.innerClassNames,
+            control: "rounded-md",
+          }}
+        />
+      ) : (
+        <Select
+          {...props}
+          name={props.name}
+          placeholder={props.placeholder || t("select")}
+          isSearchable={true}
+          options={options}
+          value={valueFromGroup}
+          onChange={handleSelectChange}
+          isMulti
+          className={customClassNames?.hostsSelect?.select}
+          innerClassNames={{
+            ...customClassNames?.hostsSelect?.innerClassNames,
+            control: "rounded-md",
+          }}
+        />
+      )}
       {/* This class name conditional looks a bit odd but it allows a seamless transition when using autoanimate
        - Slides down from the top instead of just teleporting in from nowhere*/}
       <ul
@@ -113,8 +170,17 @@ export const CheckedTeamSelect = ({
                 `flex px-3 py-2 ${index === valueFromGroup.length - 1 ? "" : "border-subtle border-b"}`,
                 customClassNames?.selectedHostList?.listItem?.container
               )}>
-              {!isPlatform && <Avatar size="sm" imageSrc={option.avatar} alt={option.label} />}
-              {isPlatform && (
+              {option.isEmailInvite ? (
+                <Icon
+                  name="mail"
+                  className={classNames(
+                    "mt-0.5 h-4 w-4",
+                    customClassNames?.selectedHostList?.listItem?.avatar
+                  )}
+                />
+              ) : !isPlatform ? (
+                <Avatar size="sm" imageSrc={option.avatar} alt={option.label} />
+              ) : (
                 <Icon
                   name="user"
                   className={classNames(
@@ -126,6 +192,7 @@ export const CheckedTeamSelect = ({
               <p
                 className={classNames(
                   "text-emphasis my-auto ms-3 text-sm",
+                  option.isEmailInvite && "italic",
                   customClassNames?.selectedHostList?.listItem?.name
                 )}>
                 {option.label}

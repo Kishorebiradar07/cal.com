@@ -60,6 +60,8 @@ const CheckedHostField = ({
   isRRWeightsEnabled,
   groupId,
   customClassNames,
+  allowEmailInvites = false,
+  teamMemberEmails = [],
   ...rest
 }: {
   labelText?: string;
@@ -71,6 +73,8 @@ const CheckedHostField = ({
   helperText?: React.ReactNode | string;
   isRRWeightsEnabled?: boolean;
   groupId: string | null;
+  allowEmailInvites?: boolean;
+  teamMemberEmails?: string[];
 } & Omit<Partial<ComponentProps<typeof CheckedTeamSelect>>, "onChange" | "value">) => {
   return (
     <div className="flex flex-col rounded-md">
@@ -83,11 +87,13 @@ const CheckedHostField = ({
               onChange(
                 options.map((option) => ({
                   isFixed,
-                  userId: parseInt(option.value, 10),
+                  userId: option.isEmailInvite ? 0 : parseInt(option.value, 10),
                   priority: option.priority ?? 2,
                   weight: option.weight ?? 100,
                   scheduleId: option.defaultScheduleId,
                   groupId: option.groupId,
+                  isEmailInvite: option.isEmailInvite,
+                  email: option.email,
                 }))
               );
           }}
@@ -95,15 +101,29 @@ const CheckedHostField = ({
             .filter(({ isFixed: _isFixed }) => isFixed === _isFixed)
             .reduce((acc, host) => {
               const option = options.find((member) => member.value === host.userId.toString());
-              if (!option) return acc;
+              if (!option && !host.isEmailInvite) return acc;
 
-              acc.push({
-                ...option,
-                priority: host.priority ?? 2,
-                isFixed,
-                weight: host.weight ?? 100,
-                groupId: host.groupId,
-              });
+              if (host.isEmailInvite && host.email) {
+                acc.push({
+                  label: `${host.email} (invite)`,
+                  value: `email-${host.email}`,
+                  avatar: "",
+                  email: host.email,
+                  priority: host.priority ?? 2,
+                  isFixed,
+                  weight: host.weight ?? 100,
+                  groupId: host.groupId,
+                  isEmailInvite: true,
+                });
+              } else if (option) {
+                acc.push({
+                  ...option,
+                  priority: host.priority ?? 2,
+                  isFixed,
+                  weight: host.weight ?? 100,
+                  groupId: host.groupId,
+                });
+              }
 
               return acc;
             }, [] as CheckedSelectOption[])}
@@ -113,6 +133,8 @@ const CheckedHostField = ({
           isRRWeightsEnabled={isRRWeightsEnabled}
           customClassNames={customClassNames}
           groupId={groupId}
+          allowEmailInvites={allowEmailInvites}
+          teamMemberEmails={teamMemberEmails}
           {...rest}
         />
       </div>
